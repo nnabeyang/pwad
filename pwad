@@ -3,14 +3,14 @@ usage() {
   cat <<FIN
 usage: pwad <command>
 commands:
-  init                        初期化
-  set      <name> <password>  パスワードを保存
-  create   <name>             パスワードを生成
-  get      <name>             指定したパスワードをクリップボードに保存
-  ls                          管理しているパスワードの一覧を表示 
-  rm       <name>             パスワード管理リストから削除
-  rename   <name> <newname>   名前を変更 
-  newpass                     パスフレーズの再設定
+  init                                  初期化
+  set      <name> <account> <password>  パスワードを保存
+  create   <name> <account>             パスワードを生成
+  get      <name>                       指定したパスワードをクリップボードに保存
+  ls                                    管理しているパスワードの一覧を表示
+  rm       <name>                       パスワード管理リストから削除
+  rename   <name> <newname>             名前を変更
+  newpass                               パスフレーズの再設定
 FIN
 }
 abs-path() {
@@ -54,13 +54,13 @@ case "$1" in
     init
   ;;
   set)
-    echo "$3" | encrypt-from-stdin $2
+    echo "$3 $4" | encrypt-from-stdin $2
   ;;
   create)
-    mkpasswd -l 15 -d 3 -C 5 | encrypt-from-stdin $2
+    echo "$3 $(mkpasswd -l 15 -d 3 -C 5)" | encrypt-from-stdin $2
   ;;
   get)
-    get $2 | pbcopy
+    get $2 | while read -r account password; do echo -n $password | pbcopy; echo $account; done
   ;;
   ls)
     ls $(abs-path .pws)
