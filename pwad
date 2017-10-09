@@ -1,0 +1,83 @@
+#!/bin/bash
+usage() {
+  cat <<FIN
+usage: pwad <command>
+commands:
+  init                        初期化
+  set      <name> <password>  パスワードを保存
+  create   <name>             パスワードを生成
+  get      <name>             指定したパスワードをクリップボードに保存
+  ls                          管理しているパスワードの一覧を表示 
+  rm       <name>             パスワード管理リストから削除
+  rename   <name> <newname>   名前を変更 
+  newpass                     パスフレーズの再設定
+FIN
+}
+abs-path() {
+  echo "$(dirname $0)/$1"
+}
+new-pass-phrase() {
+ openssl rsa -des3 -in $(abs-path .env/seckey.pem) -out $(abs-path .env/newseckey.pem)
+ mv $(abs-path .env/newseckey.pem) $(abs-path .env/seckey.pem)
+}
+create-seckey() {
+  openssl genrsa -out $(abs-path .env/seckey.pem) -aes256 2048
+}
+
+create-pubkey() {
+  openssl rsa -in $(abs-path .env/seckey.pem) -pubout -out $(abs-path .env/pubkey.pem)
+}
+
+encrypt() {
+  openssl rsautl -pubin -inkey $(abs-path .env/pubkey.pem) -in $1  -encrypt -out $(abs-path ".pws/$1")
+}
+
+encrypt-from-stdin() {
+  openssl rsautl -pubin -inkey $(abs-path .env/pubkey.pem) -encrypt -out $(abs-path ".pws/$1")
+}
+
+decrypt() {
+ cat $(abs-path ".pws/$1") | openssl rsautl -decrypt -inkey $(abs-path .env/seckey.pem)
+}
+
+init() {
+  rm -rf $(abs-path .pws) $(abs-path .env)
+  mkdir $(abs-path .pws) $(abs-path .env)
+  create-seckey
+  create-pubkey
+}
+get() {
+  decrypt "$1"
+}
+case "$1" in
+  init)
+    init
+  ;;
+  set)
+    echo "$3" | encrypt-from-stdin $2
+  ;;
+  create)
+    mkpasswd -l 15 -d 3 -C 5 | encrypt-from-stdin $2
+  ;;
+  get)
+    get $2 | pbcopy
+  ;;
+  ls)
+    ls $(abs-path .pws)
+  ;;
+  rm)
+    rm $(abs-path ".pws/$2")
+  ;;
+  rename)
+    mv $(abs-path ".pws/$2") $(abs-path ".pws/$3")
+  ;;
+  newpass)
+    new-pass-phrase
+  ;;
+  --help)
+    usage
+  ;;
+  *)
+    usage
+  ;;
+esac
